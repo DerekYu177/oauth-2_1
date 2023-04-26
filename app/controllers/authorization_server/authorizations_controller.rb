@@ -1,9 +1,24 @@
 # frozen_string_literal: true
 
 module AuthorizationServer
-  class AuthorizationController < ApplicationController
+  class AuthorizationsController < ApplicationController
+    AUTHORIZATION_REQUEST_PARAMS = %i(
+      response_type 
+      client_id 
+      code_challenge 
+      code_challenge_method 
+      redirect_uri 
+      scope 
+      state
+    )
+    
+    # https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-08#section-4.1.1
+
     def new
-      # 
+      validate_client_id!
+      validate_redirect_uri!
+      
+      render(AuthenticationMethods::Password.uri)
       # authenticates the client 
       # currently, we should only ask for a user name and password
     end
@@ -44,6 +59,29 @@ module AuthorizationServer
       authorization_response_params[:iss] = nil
 
       @redirect_url = client.callback_url(**authorization_response_params)
+    end
+
+    private
+
+    def validate_client_id!
+      client_id = authorization_request_params[:client_id]
+      
+      @client = AuthorizationServer::Client.find(client_id)
+      oauth_error!(:unauthorized_client) unless @client
+    end
+
+    def validate_redirect_uri!
+      redirect_uri = authorization_request_params[:redirect_uri]
+      
+      oauth_error!(:invalid_request) unless @client.registered_redirect_uri?(redirect_uri)
+    end
+
+    def oauth_error!(error)
+      # TODO
+    end
+
+    def authorization_request_params
+      params.permit(*AUTHORIZATION_REQUEST_PARAMS)
     end
   end
 end

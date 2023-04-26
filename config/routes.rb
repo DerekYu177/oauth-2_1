@@ -8,7 +8,7 @@ Rails.application.routes.draw do
 
     # used by the client to obtain authorization from the resource owner
     # via user agent redirection.
-    resource :authorization, only: %i() do
+    resource :authorization, only: %i(), path: 'authorize' do
       get '/', action: :new
       post '/', action: :create
     end

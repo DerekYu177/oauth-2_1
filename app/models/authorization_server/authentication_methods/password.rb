@@ -5,6 +5,12 @@ module AuthorizationServer
     class Password
       attr_reader :username, :password
 
+      class << self
+        def uri
+          'password'
+        end
+      end
+
       def initialize(username:, password:)
         @username = username
         @password = password

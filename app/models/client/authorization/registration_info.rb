@@ -14,6 +14,10 @@ module Client
         url_helpers.callback_client_url(...)
       end
 
+      def redirect_uris
+        [redirect_uri]
+      end
+
       private
 
       def url_helpers
