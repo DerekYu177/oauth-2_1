@@ -33,24 +33,48 @@ RSpec.describe(AuthorizationServer::AuthorizationsController, type: :request) do
       it { is_expected.to(have_http_status(:ok)) }
     end
 
-    shared_examples 'fails' do |with:, message:|
-      # TODO
+    shared_examples 'fails' do |error, message, renders:|
+      if renders == :error
+        it 'with error page' do
+          is_expected.to(render_template('authorization_server/authorizations/error'))
+
+          node = Capybara::Node::Simple.new(response.body)
+          expect(node.find('span[error-type="name"]').text).to(eq(error.to_s))
+          expect(node.find('span[error-type="message"]').text).to(eq(message))
+        end
+      elsif renders == nil
+        it 'with redirect_uri' do
+          subject
+
+          uri = Addressable::URI.parse(response.location)
+          expect(uri.query_values.symbolize_keys).to(include(
+            error: error.to_s,
+            error_description: message,
+            state: state,
+            iss: 'authorization.example.dev'
+          ))
+        end
+      end
     end
 
-    context 'returns invalid_request' do
-      context 'when missing required parameter' do
-      end
-
-      context 'when includes a parameter more than once' do
-      end
-
-      context 'when parameter is malformed' do
-      end
+    context 'when missing required parameter' do
+      let(:client_id) { nil }
+      it_behaves_like 'fails', :invalid_request, 'missing required parameter', renders: :error
     end
 
-    context 'returns unauthorized_client' do
-      context 'when client cannot request an authorization code using this method' do
-      end
+    context 'when missing required redirect_uri parameter' do
+      let(:redirect_uri) { nil }
+      it_behaves_like 'fails', :missing_redirect_uri, 'redirect_uri is missing', renders: :error
+    end
+
+    context 'when mismatch redirect_uri parameter' do
+      let(:redirect_uri) { 'https://hacker.io/callback' }
+      it_behaves_like 'fails', :mismatching_redirect_uri, 'redirect_uri does not match list of authorized [redirect_uri]', renders: :error
+    end
+
+    context 'when client cannot request an authorization code using this method' do
+      let(:client_id) { 'clearly-incorrect-client-uuid' }
+      it_behaves_like 'fails', :unauthorized_client, 'this client is not authorized to request an authorization code using this method', renders: nil
     end
 
     context 'returns access_denied' do
@@ -61,9 +85,9 @@ RSpec.describe(AuthorizationServer::AuthorizationsController, type: :request) do
       end
     end
 
-    context 'returns unsupported_response_type' do
-      context 'when AS does not support obtaining an authorization code using this method' do
-      end
+    context 'when the response_type is not authorization_code' do
+      let(:response_type) { 'implicit' }
+      it_behaves_like 'fails', :unsupported_response_type, 'the authentication service does not support this response type', renders: nil
     end
 
     context 'returns invalid_scope' do

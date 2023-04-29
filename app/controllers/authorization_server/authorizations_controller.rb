@@ -13,11 +13,14 @@ module AuthorizationServer
     )
     
     # https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-08#section-4.1.1
+    before_action(
+      :validate_client_id!,
+      :validate_redirect_uri!,
+      :validate_response_type!,
+      only: :new,
+    )
 
     def new
-      validate_client_id!
-      validate_redirect_uri!
-      
       render(AuthenticationMethods::Password.uri)
       # authenticates the client 
       # currently, we should only ask for a user name and password
@@ -65,19 +68,61 @@ module AuthorizationServer
 
     def validate_client_id!
       client_id = authorization_request_params[:client_id]
+      return oauth_error!(:invalid_request) unless client_id
       
       @client = AuthorizationServer::Client.find(client_id)
-      oauth_error!(:unauthorized_client) unless @client
+      return oauth_error!(:unauthorized_client) unless @client
     end
 
     def validate_redirect_uri!
       redirect_uri = authorization_request_params[:redirect_uri]
       
-      oauth_error!(:invalid_request) unless @client.registered_redirect_uri?(redirect_uri)
+      return oauth_error!(:missing_redirect_uri) unless redirect_uri
+      # oauth_error!(:invalid_redirect_uri) unless URI.new(redirect_uri).valid?
+      return oauth_error!(:mismatching_redirect_uri) unless @client.registered_redirect_uri?(redirect_uri)
+    end
+
+    def validate_response_type!
+      response_type = authorization_request_params[:response_type]
+      return oauth_error!(:unsupported_response_type) unless response_type == 'code'
     end
 
     def oauth_error!(error)
-      # TODO
+      case error
+      when :invalid_request
+        inform_resource_owner!(error, 'missing required parameter')
+      when :missing_redirect_uri
+        inform_resource_owner!(error, 'redirect_uri is missing')
+      when :invalid_redirect_uri
+        inform_resource_owner!(error, 'redirect_uri is malformed')
+      when :mismatching_redirect_uri
+        inform_resource_owner!(error, 'redirect_uri does not match list of authorized [redirect_uri]')
+      # assume that redirect_uri is valid from here on out
+      when :unauthorized_client
+        inform_client!(error, 'this client is not authorized to request an authorization code using this method')
+      when :unsupported_response_type
+        inform_client!(error, 'the authentication service does not support this response type')
+      else
+      end
+    end
+
+    def inform_resource_owner!(error, message)
+      @error = error
+      @message = message
+      render(:error)
+    end
+
+    def inform_client!(error, message)
+      redirect_uri = authorization_request_params[:redirect_uri]
+      uri = Addressable::URI.parse(redirect_uri)
+      uri.query_values = {
+        error: error,
+        error_description: message,
+        state: authorization_request_params[:state],
+        iss: 'authorization.example.dev',
+      }
+
+      redirect_to(uri.to_s, allow_other_host: true)
     end
 
     def authorization_request_params
