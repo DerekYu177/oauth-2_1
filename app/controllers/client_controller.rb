@@ -36,8 +36,15 @@ class ClientController < ApplicationController
     authorization_request_params[:redirect_uri]           = client.redirect_uri   # Optional
     authorization_request_params[:scope]                  = 'email'               # Optional
     authorization_request_params[:state]                  = state                 # Optional
+
+    # outside of the specification
+    # There is no distinction between applications and users
+    # In this flow, we will focus on the user
+    authorization_request_params[:user] = User.first.uuid
     
     @redirect_url = authorization_server_authorization_path(**authorization_request_params)
+
+    redirect_to(@redirect_url)
   end
 
   def with_authorization_code_callback

@@ -54,6 +54,8 @@ GEM
     activerecord (7.0.4.3)
       activemodel (= 7.0.4.3)
       activesupport (= 7.0.4.3)
+    activerecord-typedstore (1.5.1)
+      activerecord (>= 6.1)
     activestorage (7.0.4.3)
       actionpack (= 7.0.4.3)
       activejob (= 7.0.4.3)
@@ -218,6 +220,7 @@ GEM
       railties (>= 6.0.0)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
+    ulid (1.4.0)
     web-console (4.2.0)
       actionview (>= 6.0.0)
       activemodel (>= 6.0.0)
@@ -239,6 +242,7 @@ PLATFORMS
   x86_64-darwin-21
 
 DEPENDENCIES
+  activerecord-typedstore
   addressable
   bootsnap
   capybara
@@ -256,6 +260,7 @@ DEPENDENCIES
   stimulus-rails
   turbo-rails
   tzinfo-data
+  ulid
   web-console
   webdrivers
 

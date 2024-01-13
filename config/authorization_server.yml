@@ -1,0 +1,14 @@
+default: &default
+  encryption_secret: ''
+  issuer: 'authorization.example.dev'
+
+development:
+  <<: *default
+
+production:
+  <<: *default
+
+test:
+  <<: *default
+
+

@@ -1,0 +1,5 @@
+<%= form_with(url: authorization_server_authorization_authentication_password_path(**oauth_state_params)) do |form| %>
+  <%= form.text_field(:username, value: 'admin') %>
+  <%= form.password_field(:password, value: 'password') %>
+  <%= form.submit 'auth' %>
+<% end %>

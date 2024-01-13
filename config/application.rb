@@ -22,6 +22,7 @@ module Oauth21
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 7.0
+    config.authorization_server = config_for(:authorization_server)
 
     Rails.application.routes.default_url_options[:host] = 'localhost:3000'
 

@@ -11,6 +11,10 @@ Rails.application.routes.draw do
     resource :authorization, only: %i(), path: 'authorize' do
       get '/', action: :new
       post '/', action: :create
+
+      namespace :authentication, path: 'auth' do
+        resource :password, only: %i(new create)
+      end
     end
 
     # used by the client to exchange an authorization grant
@@ -30,7 +34,7 @@ Rails.application.routes.draw do
     # end
   end
 
-  resource :client, only: %i() do
+  resource :client, only: %i(), controller: 'client' do
     get '/without', action: :without_authorization, as: :without_authorization
     get '/callback', action: :with_authorization_code_callback, as: :callback
   end

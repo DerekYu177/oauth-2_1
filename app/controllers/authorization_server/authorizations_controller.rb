@@ -17,30 +17,34 @@ module AuthorizationServer
       :validate_client_id!,
       :validate_redirect_uri!,
       :validate_response_type!,
-      only: :new,
+      :validate_user!
+      only: :new
     )
 
+    before_action :fetch_oauth_state, only: :create
+
     def new
-      render(AuthenticationMethods::Password.uri)
+      client_id             = authorization_request_params[:client_id]
+      code_challenge        = authorization_request_params[:code_challenge]
+      code_challenge_method = authorization_request_params[:code_challenge_method]
+      redirect_uri          = authorization_request_params[:redirect_uri]
+
+      user_uuid = params[:user]
+
+      oauth_state = AuthorizationServer::OAuthState.new(
+        client_id: client_id,
+        code_challenge: "#{code_challenge_method}:#{code_challenge}",
+        redirect_uri: redirect_uri,
+        user_uuid: user_uuid,
+      )
+      oauth_state.save!
+
       # authenticates the client 
       # currently, we should only ask for a user name and password
+      redirect_to(AuthenticationMethods::Password.uri(oauth_state.to_param))
     end
 
     def create
-      authorization_params = params.permit(:username, :password).to_h
-      
-      method = AuthenticationMethods::Password.new(**authorization_params)
-
-      if method.valid?
-        AuthorizationGrants::AuthorizationCode.new
-      end
-      # client submits authentication
-      # if successful
-      #   AccessToken
-      # else
-      #   Error 
-      # end
-
       # the resource owner provides an authorization grant
       # that has 3 different grant types:
       # AuthorizationCode
@@ -54,14 +58,27 @@ module AuthorizationServer
       # redirects back to the original caller
       # In this case, to the Client#with_authentication
       # let's assume that the Client has Registered with the Authorization server
-      client = AuthorizationServer::Client.new
 
-      authorization_response_params = {}
-      authorization_response_params[:code] = nil
-      authorization_response_params[:state] = nil
-      authorization_response_params[:iss] = nil
+      if method.valid?
+        client_id             = oauth_state[:client_id]
+        code_challenge        = oauth_state[:code_challenge]
+        code_challenge_method = oauth_state[:code_challenge_method]
+        redirect_uri          = oauth_state[:redirect_uri]
 
-      @redirect_url = client.callback_url(**authorization_response_params)
+        authorization_code = AuthorizationGrants::AuthorizationCode.new(
+          client_id: client_id,
+          code_challenge: "#{code_challenge_method}:#{code_challenge}",
+          redirect_uri: redirect_uri,
+        )
+
+        authorization_response_params = {}
+        authorization_response_params[:code] = authorization_code
+        authorization_response_params[:state] = authorization_request_params[:state]
+        authorization_response_params[:iss] = Rails.configuration.authorization_server.issuer
+
+        redirect_url = client.callback_url(**authorization_response_params)
+        redirect_to(client_url)
+      end
     end
 
     private
@@ -119,7 +136,7 @@ module AuthorizationServer
         error: error,
         error_description: message,
         state: authorization_request_params[:state],
-        iss: 'authorization.example.dev',
+        iss: Rails.configuration.authorization_server.issuer,
       }
 
       redirect_to(uri.to_s, allow_other_host: true)
@@ -127,6 +144,10 @@ module AuthorizationServer
 
     def authorization_request_params
       params.permit(*AUTHORIZATION_REQUEST_PARAMS)
+    end
+
+    def fetch_oauth_state
+      params.permit(:oauth_state)
     end
   end
 end

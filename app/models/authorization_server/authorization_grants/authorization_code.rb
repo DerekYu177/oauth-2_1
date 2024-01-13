@@ -2,11 +2,19 @@
 
 module AuthorizationServer
   module AuthorizationGrants
-    class AuthorizationCode
-      attr_reader :code
+    class AuthorizationCode < ApplicationRecord
+      self.table_name = 'as_authorization_code_grants'
 
-      def initialize
-        @code = '803552d7-3076-4003-b773-b60aa3201eb5'
+      include ULIDable
+
+      after_initialize :set_expires_at
+
+      validates :redirect_uri, :code_challenge, :client_id, presence: true
+
+      private
+
+      def set_expires_at
+        self.expires_at = 10.minutes.from_now
       end
     end
   end

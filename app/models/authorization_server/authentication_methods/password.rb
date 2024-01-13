@@ -6,8 +6,14 @@ module AuthorizationServer
       attr_reader :username, :password
 
       class << self
-        def uri
-          'password'
+        def uri(...)
+          url_helper.new_authorization_server_authorization_authentication_password_path(...)
+        end
+
+        private
+
+        def url_helper
+          @url_helper ||= Rails.application.routes.url_helpers
         end
       end
 
